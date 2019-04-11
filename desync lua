@@ -1,0 +1,126 @@
+require 'bit'
+local needs_reset = false
+local next_update = 0
+
+--localizations
+local ui_new_checkbox = ui.new_checkbox
+local ui_new_hotkey = ui.new_hotkey
+local ui_get = ui.get
+local ui_set = ui.set
+local ui_reference = ui.reference
+
+local client_set_event_callback = client.set_event_callback
+local client_get_cvar = client.get_cvar
+local renderer_indicator = renderer.indicator
+local renderer_text = renderer.text
+local client_screen_size = client.screen_size
+
+local entity_get_local_player = entity.get_local_player
+local entity_get_prop = entity.get_prop
+local entity_is_alive = entity.is_alive
+
+local yaw, yaw_s = ui.reference("AA", "Anti-aimbot angles", "Yaw")
+local b_yaw, b_yaw_s = ui.reference("AA", "Anti-aimbot angles", "Body yaw")
+local limit = ui.reference("AA", "Anti-aimbot angles", "Fake yaw limit")
+
+local ui_switch_enable = ui.new_checkbox("AA", "Anti-aimbot angles", "Desync")
+local ui_hotkey_switch = ui.new_hotkey("AA", "Anti-aimbot angles", "Switch")
+local slider = ui.new_slider("AA", "Anti-aimbot angles", "Roll", -180, 180, 0)
+local slider2 = ui.new_slider("AA", "Anti-aimbot angles", "Offset", -180, 180, 0)
+local force_reset = ui.new_hotkey("AA", "Anti-aimbot angles", "Refresh Antiaim")
+
+if ui.get(force_reset) then
+	needs_reset = true
+end
+
+client.set_event_callback("setup_command", function(c)
+    local velocity = { entity.get_prop(entity.get_local_player(), "m_vecVelocity") }
+    local velocity2d = math.sqrt(velocity[1]^2+velocity[2]^2)
+    local curtime = globals.curtime()
+    if velocity2d > 0 then
+        if bit.band(entity.get_prop(entity.get_local_player(), "m_fFlags"), 1) == 1 then
+            next_update = curtime + 0.22
+        else
+            next_update = curtime + 1.1
+        end
+        needs_reset = true
+    end
+    if curtime > next_update then
+        ui.set(yaw_s, ui.get(slider))
+        next_update = curtime + 1.1
+        
+        if needs_reset then
+            ui.set(limit, 0)
+            needs_reset = false
+        else
+            ui.set(limit, 60)
+        end
+    else
+        ui.set(yaw_s, ui.get(slider2))
+    end
+end)
+
+function set_if_not(ui_reference, value)
+    if ui.get(ui_reference) ~= value then
+        ui.set(ui_reference, value)
+    end
+end
+
+client.set_event_callback("paint", function(ctx)
+    if not ui.get(ui_switch_enable) then
+        return
+    end
+	
+	local scrsize_x, scrsize_y = client_screen_size()
+    local center_x, center_y = scrsize_x / 2, scrsize_y / 2 
+   
+    if ui.get(ui_hotkey_switch) then
+        renderer_text(center_x + 65, center_y, 48, 149, 255, 220, "c+", 0, "►")
+        renderer.indicator(255, 255, 255, 255, "RIGHT")
+        if ui.get(slider) ~= 90 then
+            ui.set(slider, 90)
+        end
+        if ui.get(b_yaw_s) ~= 180 then
+            ui.set(b_yaw_s, 180)
+        end
+    elseif not ui.get(ui_hotkey_switch) then
+        renderer_text(center_x - 65, center_y, 48, 149, 255, 220, "c+", 0, "◄")
+        renderer.indicator(255, 255, 255, 255, "LEFT")
+		if ui.get(slider) ~= -90 then
+            ui.set(slider, -90)
+        end
+        if ui.get(b_yaw_s) ~= -180 then
+            ui.set(b_yaw_s, -180)
+        end
+    end
+end)
+
+-- indicator 
+
+local RefreshDesync = ui.reference("AA", "Anti-aimbot angles", "Refresh Antiaim")
+local MultiSelectItems = {"Refreshing"}
+local RefreshCheckbox = ui.new_checkbox("AA", "Anti-aimbot angles", "Indicator")
+local ui_aa_refresh = ui.reference("AA", "Anti-aimbot angles", "Refresh Antiaim")
+
+function set_if_not(ui_reference, value)
+    if ui.get(ui_reference) ~= value then
+        ui.set(ui_reference, value)
+    end
+end
+
+client.set_event_callback("paint", function(ctx)
+    if not ui.get(ui_aa_refresh) then
+        return
+    end
+	
+	local scrsize_x, scrsize_y = client_screen_size()
+    local center_x, center_y = scrsize_x / 2, scrsize_y / 2 
+   
+    if ui.get(ui_hotkey_switch) then
+        renderer.indicator(123, 194, 21, 255, "REFRESHING")
+    elseif not ui.get(ui_hotkey_switch) then
+        renderer.indicator(123, 194, 21, 255, "REFRESHING")
+
+    end
+
+end)
